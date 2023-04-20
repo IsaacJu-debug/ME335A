@@ -1,1 +1,45 @@
 .DS_Store
+
+# Ignore MATLAB-related files
+*.m~
+*.asv
+*.asv.bin
+*.bak
+*.bbl
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.pdf
+*.eps
+
+# Ignore compiled MATLAB files
+*.mexa64
+*.mexmaci64
+*.mexw64
+*.mexglx
+
+# Ignore MATLAB generated files
+*.mat
+*.fig
+
+# Ignore MATLAB code analysis files
+*.mltbx
+*.mlapp
+*.mlappinstall
+
+# Ignore MATLAB project files
+*.prj
+*.mxp
+
+# Ignore temporary files
+*.swp
+*~
+vtk_output/
