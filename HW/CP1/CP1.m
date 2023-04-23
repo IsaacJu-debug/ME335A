@@ -42,6 +42,13 @@ kk=2;
 LG=[];
 % <<-------------------------->>
 % Complete with the value of LG
+% Create a vector of element indices (1 to n_elements)
+element_indices = 1:nel;
+% Create the local-to-global mapping using vectorized operations
+LG = element_indices + (0:(kk - 1))';
+% Reshape the LG array to the desired shape [kk, nel]
+LG = reshape(LG, [kk, numel(element_indices)]);
+
 % <<-------------------------->>  
   
 %% finite element solver begins
@@ -62,6 +69,7 @@ F=zeros(nunk,1);
 %% Assembly of active indices
 for iel=1:nel
   % setting the local data
+  % loop through elements
   lge=LG(:,iel);
   xe(1:dd,1:npe)=X(1:dd,iel:iel+1);
   fe=ff(iel);
@@ -71,6 +79,11 @@ for iel=1:nel
   [Ke, Fe]=elementKandF(xe,fe,lambda,hhe);
   % <<-------------------------->>
   % Complete with the assembly of Ke and Fe into K and F 
+  
+  K( lge(1):lge(2), lge(1):lge(2)) =  K( lge(1):lge(2), lge(1):lge(2)) + Ke(:, :);
+  
+  F(lge(1):lge(2)) = F(lge(1):lge(2)) + Fe(:);
+  
   % <<-------------------------->>  
 end
   
@@ -79,6 +92,10 @@ ng=length(EtaG);
 for ig=1:ng
   % <<-------------------------->>
   % Complete with the assembly of K and F 
+  
+  K(EtaG(ig), :) = 0;
+  K(EtaG(ig), EtaG(ig)) = 1;
+  F(EtaG(ig)) = 1; % g = 1
   % <<-------------------------->>  
 end
 
@@ -126,6 +143,23 @@ duep=zeros(1,nxp);
 for kp=1:nxp
   % <<-------------------------->>
   % Complete uep and duep with the exact solution at each sampling point
+  if lambda<0
+      sq_lambda = sqrt(-lambda);
+      A = 1/sq_lambda; C = -2/lambda;
+      B = (lambda + sq_lambda*sin(sq_lambda) + 2)/(lambda*cos(sq_lambda));
+      uep(kp) = A*sin(sq_lambda*xp(kp)) + C +  B*cos(sq_lambda*xp(kp)) ;
+      duep(kp) = sq_lambda*(A*cos(sq_lambda*xp(kp)) - B*sin(sq_lambda*xp(kp)));
+  elseif lambda==0
+      uep(kp) = xp(kp)^2 + xp(kp) - 1;
+      duep(kp) = 2*xp(kp) + 1;
+  else
+      sq_lambda = sqrt(lambda);
+      C = -2/lambda;
+      A = (lambda + 2 + sq_lambda*exp(-sq_lambda))/(lambda*(exp(-sq_lambda) + exp(sq_lambda)));
+      B = (lambda + 2 - sq_lambda*exp(sq_lambda))/(lambda*(exp(-sq_lambda) + exp(sq_lambda)));
+      uep(kp) = A*exp(sq_lambda*xp(kp)) +  C + B*exp(-sq_lambda*xp(kp));
+      duep(kp) = sq_lambda*(A*exp(sq_lambda*xp(kp)) - B*exp(-sq_lambda*xp(kp)));
+  end
   % <<-------------------------->>  
 end
 figure(1);
@@ -142,6 +176,16 @@ function [Ke, Fe]=elementKandF(xe,fe,lambdae,hhe)
   h=xe(2)-xe(1);  % Element size
   % <<-------------------------->>
   % Complete with the values of Ke and Fe
+  % local stiffness matrix
+  Ke = zeros(2,2);
+  Fe = zeros(2,1);
+  Ke(1,1) = (-1/h ) * (-1/h) * h + lambdae * h/3; % 1st order shape functions has constant derivative
+  Ke(1,2) = (-1/h ) * (1/h) * h +lambdae*h/6;
+  Ke(2,1) = Ke(1,2); % symmetry
+  Ke(2,2) = (1/h ) * (1/h) * h + lambdae * h/3;
+  
+  Fe(1) = fe * h /2 + hhe(1);
+  Fe(2) = fe * h /2 + hhe(2);
   % <<-------------------------->>  
 end
 
@@ -150,6 +194,10 @@ end
 function [N1, N2, dN1, dN2]=P1(x)
   % <<-------------------------->>
   % Complete with the values of N1(x), N1'(x), N2(x), and N2'(x) over an interval [0,1]
+  N1 = 1-x; 
+  N2 = x; 
+  dN1 = -1; 
+  dN2 = 1;
   % <<-------------------------->> 
 end
 
