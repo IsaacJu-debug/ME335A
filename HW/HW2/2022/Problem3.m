@@ -5,7 +5,7 @@ an_sol = - (sin(2*pi*x_vec)/(2*pi)).^2 / 2;
 figure
 plot(x_vec, an_sol, '--', 'DisplayName','Analytical')
 hold on
-for ii = 1:3
+for ii = 1:5
     k = 2*ii + 1;
     k
     K_mat = zeros([k-1, k-1]);
