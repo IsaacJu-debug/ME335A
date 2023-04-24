@@ -27,10 +27,13 @@ display("Second-order problems with P1 finite elements")
 % Fe:       element load vector
 
 %% Build a mesh  -- Elements are implicitly defined by two consecutive vertices
-nel_array = [1, 10, 100]; % input array for element number
+nel_array = [10, 100, 500]; % input array for element number
 lambda_array = [-10, 0, 10]; % input array for lambda
 fig_count1 = 1; % counter for function and its derivative
 output_folder = 'plots';
+u_error = zeros(9,1);
+u_prime_error = zeros(9,1);
+error_count = 1; % counter for recording error
 
 if ~exist(output_folder, 'dir')
     mkdir(output_folder);
@@ -204,7 +207,23 @@ for k=1:length(lambda_array)
     % Update fig_count1
     fig_count1 = fig_count1 + 1;
     
+    % display error table
+    disptable(lambda, nel_array, u_error((k - 1)*3 + 1: (k)*3),...
+                u_prime_error((k - 1)*3 + 1: (k)*3));
+    
 end
+
+%% error plots
+close all
+nel_2D_array = repmat(nel_array, 3, 1);
+
+full_output_path = fullfile(output_folder, 'error_u.png');
+loglog_error_plot(reshape(u_error, [3, 3]), nel_2D_array, 1, ...
+                 full_output_path,lambda_array );
+
+full_output_path = fullfile(output_folder, 'error_u_prime.png');
+loglog_error_plot(reshape(u_prime_error, [3, 3]), nel_2D_array, 2,...
+                full_output_path, lambda_array);
 
 %% element matrix and load
 function [Ke, Fe]=elementKandF(xe,fe,lambdae,hhe)
@@ -234,4 +253,73 @@ function [N1, N2, dN1, dN2]=P1(x)
   dN1 = -1; 
   dN2 = 1;
   % <<-------------------------->> 
+end
+
+%% display table
+function disptable( lambda, nel_array, error_u, error_u_prime)
+    % Compute the 'h' array
+    disp('Table: Error')
+    
+    h = 1./ nel_array;
+    
+    % Combine the arrays into a single matrix
+    lambda = ones(size(nel_array)) * lambda;
+    data = [lambda(:), nel_array(:), h(:), error_u(:), error_u_prime(:)];
+
+    % Define the column names
+    colname = ["Lambda", "nel", "h", "||u-u_h||", "||u'-u_h'||"];
+
+    % Display the table
+    disp(array2table(data, 'VariableNames', colname))
+end
+
+%% log-log error plot
+function loglog_error_plot(error_array, h_array, opt, full_output_path, lambda_array)
+    figure;
+    hold on;
+
+    % Define colors for lines and markers
+    colors = {'r', 'g', 'b'};
+
+    for i = 1:3
+        % Extract error and h data from each column
+        error_data = error_array(:, i);
+        h_data = h_array(i, :);
+
+        % Plot the scatter points for each row using loglog
+        loglog(h_data, error_data, 'o', 'MarkerEdgeColor', colors{i}, 'MarkerFaceColor', colors{i});
+
+        % Fit a linear line to the log-log data
+        p = polyfit(log(h_data), log(error_data), 1);
+
+        % Calculate the fitted line
+        fitted_line = h_data .^ p(1) * exp(p(2));
+
+        % Plot the fitted line using loglog
+        loglog(h_data, fitted_line, colors{i}, 'LineWidth', 1.5);
+    end
+
+    grid on;
+
+    % Set labels and title
+    xlabel('log(1/h)');
+    ylabel('Error');
+
+    if (opt == 1)
+        title(('$u(x)$, Nel vs. Error '), 'Interpreter', 'latex');
+    else
+        title(('$\frac{du(x)}{dx}$, Nel vs. Error'), 'Interpreter', 'latex');
+    end
+
+    legend_text = strings(1, 6);
+    for i = 1:3
+        legend_text(2*i-1) = ['Error ', num2str(i), '. $\lambda = ', num2str(lambda_array(i)), '$'];
+        legend_text(2*i) = ['Fit ', num2str(i)];
+    end
+    lgd = legend(legend_text, 'Location', 'Best', 'Interpreter', 'latex');
+    lgd.FontSize = 14;
+
+    hold off;
+    set(gca, 'XScale', 'log', 'YScale', 'log');
+    saveas(gcf, full_output_path);
 end
