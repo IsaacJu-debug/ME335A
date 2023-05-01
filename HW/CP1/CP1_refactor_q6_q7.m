@@ -297,6 +297,11 @@ function loglog_error_plot(error_array, h_array, opt, full_output_path, lambda_a
 
         % Plot the fitted line using loglog
         loglog(h_data, fitted_line, colors{i}, 'LineWidth', 1.5);
+
+        % Add text label with the slope value (k)
+        text_position_x = h_data(end) * 1.1;
+        text_position_y = fitted_line(end);
+        text(text_position_x, text_position_y, sprintf('k = %.2f', p(1)), 'Color', colors{i}, 'FontSize', 12);
     end
 
     grid on;
@@ -323,3 +328,4 @@ function loglog_error_plot(error_array, h_array, opt, full_output_path, lambda_a
     set(gca, 'XScale', 'log', 'YScale', 'log');
     saveas(gcf, full_output_path);
 end
+
