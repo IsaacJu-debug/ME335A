@@ -17,7 +17,6 @@
 *.synctex.gz
 *.toc
 *.vrb
-*.pdf
 *.eps
 
 # Ignore compiled MATLAB files
