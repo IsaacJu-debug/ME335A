@@ -84,9 +84,20 @@ end
 %% solve algebraic system
 U=K\F;
 %% plot
-trisurf(LV',X(1,:),X(2,:),U)
+figure(1)
+trisurf(LV',X(1,:),X(2,:),U, 'EdgeColor', 'none', 'FaceColor', 'interp');
+hold on
+
+% Overlay the triangle mesh
+trimesh(LV',X(1,:),X(2,:),U, 'EdgeColor', 'k', 'FaceColor', 'none');
+
 colorbar
-xlabel('x1'), ylabel('x2'), zlabel('Solution')
+xlabel('x1', 'FontSize', 16)
+ylabel('x2', 'FontSize', 16)
+zlabel('Solution', 'FontSize', 16)
+title('FE Solution', 'FontSize', 18)
+set(gca, 'FontSize', 14)
+
 x = linspace(-1,1, 50);
 y = linspace(-1,1, 50);
 [X1,Y1] = meshgrid(x,y);
