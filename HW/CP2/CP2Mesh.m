@@ -23,8 +23,8 @@ geometryFromEdges(model,g);
 axis equal
 xlim([-1.1,1.1]);
 generateMesh(model,'GeometricOrder','linear','Hmax',Hmax);
-figure(2)
-pdeplot(model);
+%figure(2)
+%pdeplot(model);
 %% Extract coordinates and connectivity
 X=model.Mesh.Nodes;
 LV=model.Mesh.Elements;

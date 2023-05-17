@@ -195,6 +195,17 @@ end
 
 
 function [pel]=quadtreeRec(xp, LV, X, i)
+    % Inputs:
+    % 
+    % xp : A 2D point in the format [x y] for which the containing triangle is to be found.
+    % LV : A 3-by-N matrix where each column represents a triangle in the triangulation.
+    %         The entries are indices to the points in X that form the vertices of the triangle.
+    % X : A 2-by-M matrix where each column represents a point in the 2D space.
+    %         The points are the vertices of the triangles in the triangulation.
+    % i : The column index in LV of the current triangle being processed.
+    % Output:
+    % pel : The column index in LV of the triangle that contains the point xp. 
+    %         If no such triangle is found, pel is 0.
     x1 = LV(1,i);x2 = LV(2,i);x3 = LV(3,i); 
     A2 = ((X(2,x2)-X(2,x3))*(X(1,x1)-X(1,x2))+(X(1,x3)-X(1,x2))*(X(2,x1)-X(2,x2)));
     th1 = ((X(2,x2)-X(2,x3))*(xp(1)-X(1,x2))+(X(1,x3)-X(1,x2))*(xp(2)-X(2,x2))...
