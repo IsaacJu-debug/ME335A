@@ -35,7 +35,7 @@ npe=size(LG,1);
 nod=size(X,2);
 dd=size(X,1);
 nunk=nod;
-nbe=size(BE,2);
+nbe=size(BE,2); %
 
 %%
 %% finite element solver begins
@@ -43,16 +43,30 @@ nbe=size(BE,2);
 
 %% Parameters of the problem
 % boundary values
+h1 = 0.0; % Value of Neumann boundary condition for each edge in BE [Wft^-2]
+h2 = 0.0;
+h3 = 0.0;
+h4 = 0.0;
 
 % <<-------------------------------------------------------------------->>
 % Complete with the value of EtaG, GG, hh, and ff, and diffcoeff
-EtaG=; % Constrained indices
-GG=;   % Value of u for each constrained index
-hh=;   % Value of Neumann boundary condition for each edge in BE
-ff=;   % Value of f for each element
+indices = (BN(2,:) == 5) | (BN(2,:) == 6);
+EtaG= BN(1, indices); % Constrained indices
+
+GG = zeros(size(EtaG));
+EtaGPos = BN(2, BN(2,:) > 4);
+GG(EtaGPos(:) == 5) = 2500;
+GG(EtaGPos(:) == 6) = 100;  % Value of u for each constrained index [C]
+
+hh = zeros(nbe);   % Value of Neumann boundary condition for each edge in BE
+hh(BE(3, :) == 1) = h1;
+hh(BE(3, :) == 2) = h2;
+hh(BE(3, :) == 3) = h3;
+hh(BE(3, :) == 4) = h4;
+ff = ones(nel) * 0.2;   % Value of f for each element [0.2W/ft3]
 
 % material parameters
-difcoeff=; % Value of k for each element
+difcoeff=ones(nel)* 2.0* 10^-4; % Value of k for each element [W ft^-1 C^-1]
 % <<-------------------------------------------------------------------->>
 
 %% assembly, from local to global
@@ -80,6 +94,14 @@ end
 % Neumann boundaries
 % <<-------------------------------------------------------------------->>
 % Assemble Neumann boundary conditions
+for ied = 1:nbe
+    lged = BE(1:2, ied);
+    xed(1:dd, 1:2) = X(1:dd, lged);
+    Led = norm(xed(:, 1) - xed(:, 2));
+    Hed = hh(ied);
+    F(lged) = F(lged) + Hed * Led / 2;
+end
+
 % <<-------------------------------------------------------------------->>
 
 %% solve algebraic system
@@ -87,17 +109,22 @@ U=K\F;
 %% plot
 figure 
 trisurf(LG',X(1,:),X(2,:),U)
+colorbar
 set(gca, 'FontName', 'Arial')
 set(gca, 'FontSize', 18)
 
 %% Evaluate the solution
 
-
-
 %% element matrix and load
 function [Ke, Fe]=elementKandF(xe,ke,fe)
 % <<-------------------------------------------------------------------->>
 % Complete by computing Ke and Fe
+    dN=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
+    xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
+    Ae2=dN(2,3)*dN(1,2)-dN(1,3)*dN(2,2);
+    dN = dN / Ae2;
+    Ke = Ae2 / 2 * ke * dN' * dN;
+    Fe = Ae2 * fe * ones(3, 1)/6;
 % <<-------------------------------------------------------------------->>
 end
 
@@ -106,6 +133,15 @@ function [NN, dN]=P1Functions(xe,x)
 % <<-------------------------------------------------------------------->>
 % Complete by computing the shape functions NN and their gradient dN at x
 % NN(a) contains the value of N_a^e(x), and dN is defined in the notes
+    NN = zeros(3);
+    dN=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
+    xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
+    Ae2=dN(2,3)*dN(1,2)-dN(1,3)*dN(2,2);
+
+    NN(1) = 1./Ae2 * (dN(1, 1)*(x(1) - xe(1, 2)) + dN(2, 1)*(x(2) - xe(2, 2)));
+    NN(2) = 1./Ae2 * (dN(1, 2)*(x(1) - xe(1, 3)) + dN(2, 2)*(x(2) - xe(2, 3)));
+    NN(3) = 1./Ae2 * (dN(1, 3)*(x(1) - xe(1, 1)) + dN(2, 3)*(x(2) - xe(2, 1)));
+
 % <<-------------------------------------------------------------------->>
 end
 
@@ -113,5 +149,11 @@ function [u, du]=uValue(xp, X, LV, U)
 % <<-------------------------------------------------------------------->>
 % Complete by computing the value of u(xp) and du=[dudx(xp), dudy(xp)]
 % Return 0 in u and du if xp is outside the domain
+
+
+
+
+
+
 % <<-------------------------------------------------------------------->>
 end
