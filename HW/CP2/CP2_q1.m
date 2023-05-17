@@ -115,6 +115,17 @@ set(gca, 'FontSize', 18)
 
 %% Evaluate the solution
 
+xpArray = [0 , 0.9; 0.25, 0.25];
+
+[u, du]=uValue(xpArray(1,:), X, LV, U);
+fprintf('%f %f\n', xpArray(1,1), xpArray(1,2));
+disp(u);
+disp(du);
+
+[u, du]=uValue(xpArray(2,:), X, LV, U);
+fprintf('%f %f\n', xpArray(2,1), xpArray(2,2));
+disp(u);
+disp(du);
 %% element matrix and load
 function [Ke, Fe]=elementKandF(xe,ke,fe)
 % <<-------------------------------------------------------------------->>
@@ -129,11 +140,12 @@ function [Ke, Fe]=elementKandF(xe,ke,fe)
 end
 
 % Compute shape functions and derivatives to reconstruct function inside
-function [NN, dN]=P1Functions(xe,x)
+function [NN, pdN]=P1Functions(xe,x)
 % <<-------------------------------------------------------------------->>
 % Complete by computing the shape functions NN and their gradient dN at x
 % NN(a) contains the value of N_a^e(x), and dN is defined in the notes
-    NN = zeros(3);
+    NN = zeros(1,3);
+    pdN = zeros(2,3); % dN/dxi
     dN=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
     xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
     Ae2=dN(2,3)*dN(1,2)-dN(1,3)*dN(2,2);
@@ -141,7 +153,20 @@ function [NN, dN]=P1Functions(xe,x)
     NN(1) = 1./Ae2 * (dN(1, 1)*(x(1) - xe(1, 2)) + dN(2, 1)*(x(2) - xe(2, 2)));
     NN(2) = 1./Ae2 * (dN(1, 2)*(x(1) - xe(1, 3)) + dN(2, 2)*(x(2) - xe(2, 3)));
     NN(3) = 1./Ae2 * (dN(1, 3)*(x(1) - xe(1, 1)) + dN(2, 3)*(x(2) - xe(2, 1)));
+    
+    if min(NN) < 0
+        NN = [0,0,0];
+    else
+        pdN(1,1) = 1./Ae2 * dN(1, 1);
+        pdN(2,1) = 1./Ae2 * dN(2, 1);
 
+        pdN(1,2) = 1./Ae2 * dN(1, 2);
+        pdN(2,2) = 1./Ae2 * dN(2, 2);
+
+        pdN(1,3) = 1./Ae2 * dN(1, 3);
+        pdN(2,3) = 1./Ae2 * dN(2, 3);
+    end
+    
 % <<-------------------------------------------------------------------->>
 end
 
@@ -149,11 +174,57 @@ function [u, du]=uValue(xp, X, LV, U)
 % <<-------------------------------------------------------------------->>
 % Complete by computing the value of u(xp) and du=[dudx(xp), dudy(xp)]
 % Return 0 in u and du if xp is outside the domain
-
-
-
-
-
+    trias = [192, 220, 237, 39, 101, 115, 29]; 
+    i=1;
+    pel=0;
+    while pel==0
+        pel=quadtreeRec(xp, LV, X, trias(i));
+        i=i+1;
+    end
+    
+    els=LV(:,pel);
+    uel=U(els,1);
+    xe=X(:,els);
+    
+    [NN,pdN]=P1Functions(xe,xp);
+    u=NN*uel;
+    du=pdN*uel;
 
 % <<-------------------------------------------------------------------->>
+end
+
+
+function [pel]=quadtreeRec(xp, LV, X, i)
+    x1 = LV(1,i);x2 = LV(2,i);x3 = LV(3,i); 
+    A2 = ((X(2,x2)-X(2,x3))*(X(1,x1)-X(1,x2))+(X(1,x3)-X(1,x2))*(X(2,x1)-X(2,x2)));
+    th1 = ((X(2,x2)-X(2,x3))*(xp(1)-X(1,x2))+(X(1,x3)-X(1,x2))*(xp(2)-X(2,x2))...
+        )/A2;
+
+    th2 = ((X(2,x3)-X(2,x1))*(xp(1)-X(1,x3))+(X(1,x1)-X(1,x3))*(xp(2)-X(2,x3))...
+        )/A2;
+
+    th3 = 1-th1-th2;
+    if min([th1, th2, th3])<0
+        if th1<0
+            [row1,col1] = find(LV==x2);
+            [row2,col2] = find(LV==x3); 
+            [row3,col3] = find(LV==x1);
+        elseif th2<0
+            [row1,col1] = find(LV==x3);
+            [row2,col2] = find(LV==x1); 
+            [row3,col3] = find(LV==x2);
+        else
+            [row1,col1] = find(LV==x1);
+            [row2,col2] = find(LV==x2); 
+            [row3,col3] = find(LV==x3);
+        end
+        ic = setdiff(intersect(col1, col2), i);
+        if isempty(ic)==1
+            pel=0;
+        else
+            pel = quadtreeRec(xp, LV, X, ic);
+        end
+    else
+        pel = i;
+    end
 end
