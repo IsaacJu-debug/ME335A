@@ -26,6 +26,7 @@
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
+close all
 [X, LV, BE, BN]=CP2Mesh(.1);
 % Define local-to-global map and associated quantities
 % we take LG=LV
@@ -58,12 +59,12 @@ EtaGPos = BN(2, BN(2,:) > 4);
 GG(EtaGPos(:) == 5) = 2500;
 GG(EtaGPos(:) == 6) = 100;  % Value of u for each constrained index [C]
 
-hh = zeros(nbe);   % Value of Neumann boundary condition for each edge in BE
+hh = zeros(nbe, 1);   % Value of Neumann boundary condition for each edge in BE
 hh(BE(3, :) == 1) = h1;
 hh(BE(3, :) == 2) = h2;
 hh(BE(3, :) == 3) = h3;
 hh(BE(3, :) == 4) = h4;
-ff = ones(nel) * 0.2;   % Value of f for each element [0.2W/ft3]
+ff = ones(nel,1) * 0.2;   % Value of f for each element [0.2W/ft3]
 
 % material parameters
 difcoeff=ones(nel)* 2.0* 10^-4; % Value of k for each element [W ft^-1 C^-1]
@@ -187,7 +188,7 @@ function [u, du]=uValue(xp, X, LV, U)
     uel=U(els,1);
     xe=X(:,els);
     
-    disp(xe);
+    %disp(xe);
     [NN,pdN]=P1Functions(xe,xp);
     u=NN*uel;
     du=pdN*uel;

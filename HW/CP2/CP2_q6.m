@@ -29,8 +29,9 @@
 close all;
 clear;
 sampleSize = 10;
-hMaxArray = [0.2, 0.1, 0.05, 0.025, 0.015];
-%hMaxArray = [0.2, 0.1, 0.05, 0.025];
+%hMaxArray = [0.2, 0.1, 0.05, 0.025, 0.015];
+%hMaxArray = [0.2, 0.15, 0.1, 0.08 ,0.05, 0.025];
+hMaxArray = [0.2, 0.1, 0.05, 0.025];
 
 eUArray = zeros(size(hMaxArray, 2) -1,1); % ui - u_(i+1)
 edUArray = zeros(size(hMaxArray, 2) -1,1); % dui - du_(i+1)
@@ -75,10 +76,10 @@ for i = 1:size(hMaxArray, 2)
 
     GG = zeros(size(EtaG));
     EtaGPos = BN(2, BN(2,:) > 4);
-    GG(EtaGPos(:) == 5) = 2500;
-    GG(EtaGPos(:) == 6) = 100;  % Value of u for each constrained index [C]
+    GG(EtaGPos(:) == 5) = 2500.0;
+    GG(EtaGPos(:) == 6) = 100.0;  % Value of u for each constrained index [C]
 
-    hh = zeros(nbe);   % Value of Neumann boundary condition for each edge in BE
+    hh = zeros(nbe, 1);   % Value of Neumann boundary condition for each edge in BE
     hh(BE(3, :) == 1) = h1;
     hh(BE(3, :) == 2) = h2;
     hh(BE(3, :) == 3) = h3;
@@ -335,8 +336,10 @@ function [uMat, duMat ] = sampleSolu(X, LV, U, sampleSize)
 end
 
 function [eU, eDU] = calcNorm(uMat, duMat)
-    eU = norm(uMat, 'fro');
-    eDU = norm(duMat, 'fro');
+    %eU = norm(uMat, 'fro');
+    eU = sqrt(sum(uMat.^2, 'all'));
+    eDU = sqrt(sum(duMat.^2, 'all'));
+    %eDU = norm(duMat, 'fro');
 end
 
 function plotConvergence(h_array, error_array)
@@ -361,8 +364,8 @@ function plotConvergence(h_array, error_array)
     loglog(h_array, exp(P(2))*h_array.^P(1), 'r--', 'LineWidth', 2)
 
     % Add labels, title, and legend
-    xlabel('HMax (feet)', 'FontSize', 14)
-    ylabel('Error (C)', 'FontSize', 14)
+    xlabel('Log(HMax)', 'FontSize', 14)
+    ylabel('log(e_{a,2}(u_i - u_{i+1}))', 'FontSize', 14)
     title('Convergence Plot', 'FontSize', 16)
     legend('Data', ['Slope = ', num2str(P(1))], 'Location', 'best')
     grid on

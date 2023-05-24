@@ -55,10 +55,10 @@ EtaG= BN(1, indices); % Constrained indices
 
 GG = zeros(size(EtaG));
 EtaGPos = BN(2, BN(2,:) > 4);
-GG(EtaGPos(:) == 5) = 2500;
-GG(EtaGPos(:) == 6) = 100;  % Value of u for each constrained index [C]
+GG(EtaGPos(:) == 5) = 2500.0;
+GG(EtaGPos(:) == 6) = 100.0;  % Value of u for each constrained index [C]
 
-hh = zeros(nbe);   % Value of Neumann boundary condition for each edge in BE
+hh = zeros(nbe, 1);   % Value of Neumann boundary condition for each edge in BE
 hh(BE(3, :) == 1) = h1;
 hh(BE(3, :) == 2) = h2;
 hh(BE(3, :) == 3) = h3;
@@ -174,12 +174,27 @@ function [u, du]=uValue(xp, X, LV, U)
 % <<-------------------------------------------------------------------->>
 % Complete by computing the value of u(xp) and du=[dudx(xp), dudy(xp)]
 % Return 0 in u and du if xp is outside the domain
-    trias = [192, 220, 237, 39, 101, 115, 29]; 
-    i=1;
-    pel=0;
-    while pel==0
-        pel=quadtreeRec(xp, LV, X, trias(i));
-        i=i+1;
+%     trias = [192, 220, 237, 39, 101, 115, 29]; 
+%     i=1;
+%     pel=0;
+    
+    pel = brutalForceSearch(xp, LV, X);
+    
+%     while (pel==0 && i <= 10)
+%         pel=quadtreeRec(xp, LV, X, trias(i));
+%         i=i+1;
+%     end
+%     
+%     if (i > 10)
+%         % be outside of domain
+%         u = 0.0;
+%         du = [0.0,0.0];
+%         return;
+%     end
+    if (pel < 0)
+        u = 0.0;
+        du = [0.0,0.0];
+        return;
     end
     
     els=LV(:,pel);
@@ -193,6 +208,35 @@ function [u, du]=uValue(xp, X, LV, U)
 % <<-------------------------------------------------------------------->>
 end
 
+
+function [pel]=brutalForceSearch(xp, LV, X)
+    % Inputs:
+    % 
+    % xp : A 2D point in the format [x y] for which the containing triangle is to be found.
+    % LV : A 3-by-N matrix where each column represents a triangle in the triangulation.
+    %         The entries are indices to the points in X that form the vertices of the triangle.
+    % X : A 2-by-M matrix where each column represents a point in the 2D space.
+    %         The points are the vertices of the triangles in the triangulation. 
+    % Output:
+    % pel : The column index in LV of the triangle that contains the point xp. 
+    %         If no such triangle is found, pel is 0.
+    for i = 1:size(LV,2)
+        x1 = LV(1,i);x2 = LV(2,i);x3 = LV(3,i); 
+        A2 = ((X(2,x2)-X(2,x3))*(X(1,x1)-X(1,x2))+(X(1,x3)-X(1,x2))*(X(2,x1)-X(2,x2)));
+        th1 = ((X(2,x2)-X(2,x3))*(xp(1)-X(1,x2))+(X(1,x3)-X(1,x2))*(xp(2)-X(2,x2))...
+            )/A2;
+        th2 = ((X(2,x3)-X(2,x1))*(xp(1)-X(1,x3))+(X(1,x1)-X(1,x3))*(xp(2)-X(2,x3))...
+            )/A2;
+
+        th3 = 1-th1-th2;
+
+        if min([th1, th2, th3])<0
+            continue;
+        else
+            pel = i;
+        end
+    end
+end
 
 function [pel]=quadtreeRec(xp, LV, X, i)
     % Inputs:
