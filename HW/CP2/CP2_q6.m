@@ -37,10 +37,10 @@ eUArray = zeros(size(hMaxArray, 2) -1,1); % ui - u_(i+1)
 edUArray = zeros(size(hMaxArray, 2) -1,1); % dui - du_(i+1)
 
 uDiffArray = zeros(sampleSize + 1, sampleSize + 1, size(hMaxArray, 2)-1);
-dUDiffArray = zeros(sampleSize + 1, sampleSize + 1, size(hMaxArray, 2)-1);
+dUDiffArray = zeros(sampleSize + 1, sampleSize + 1, size(hMaxArray, 2)-1, 2); % gradient 
 
 prevU = zeros(sampleSize + 1, sampleSize + 1);
-prevdU = zeros(sampleSize + 1, sampleSize + 1);
+prevdU = zeros(sampleSize + 1, sampleSize + 1, 2);
 
 for i = 1:size(hMaxArray, 2)
     hMax = hMaxArray(i);
@@ -140,8 +140,8 @@ for i = 1:size(hMaxArray, 2)
     
     if (i > 1)
         uDiffArray(:, :, i-1) = uMat - prevU;
-        dUDiffArray(:, :, i-1) =  duMat - prevdU;
-        [eUArray(i-1), edUArray(i -1)]  = calcNorm(uDiffArray(:, :, i-1), dUDiffArray(:, :, i-1));
+        dUDiffArray(:, :, i-1, :) =  duMat - prevdU;
+        [eUArray(i-1), edUArray(i -1)]  = calcNorm(uDiffArray(:, :, i-1), dUDiffArray(:, :, i-1, :));
     end
     prevU = uMat;
     prevdU = duMat;
@@ -323,14 +323,15 @@ function [uMat, duMat ] = sampleSolu(X, LV, U, sampleSize)
     x = -1 + 2 * i / N;
     [X_i, X_j] = meshgrid(x, x);
     uMat = zeros(size(X_i));
-    duMat = zeros(size(X_i));
+    duMat = zeros([size(X_i), 2]);
     
     for i = 1:size(X_i, 2)
         for j = 1:size(X_i, 1)
             [u, du]=uValue( [X_i(i,j), X_j(i,j)], X, LV, U);
             %disp([X_i(i,j), X_j(i,j)]);
             uMat(i,j) = u;
-            duMat(i,j) = norm(du);
+            duMat(i,j,:) = du;
+            %duMat(i,j) = norm(du);
         end
     end
 end
@@ -338,7 +339,8 @@ end
 function [eU, eDU] = calcNorm(uMat, duMat)
     %eU = norm(uMat, 'fro');
     eU = sqrt(sum(uMat.^2, 'all'));
-    eDU = sqrt(sum(duMat.^2, 'all'));
+    duMatNormed = vecnorm( duMat , 2, 3);
+    eDU = sqrt(sum(duMatNormed.^2, 'all'));
     %eDU = norm(duMat, 'fro');
 end
 
@@ -356,7 +358,7 @@ function plotConvergence(h_array, error_array)
     loglog(h_array, error_array, 'ko-', 'LineWidth', 2, 'MarkerSize', 10)
 
     % Calculate and display the slope of the line
-    P = polyfit(log(h_array), log(error_array), 1);
+    P = polyfit(log(h_array(end-1:end)), log(error_array(end-1:end)), 1);
     disp(['The slope of the line is ', num2str(P(1))])
 
     % Add line showing slope
