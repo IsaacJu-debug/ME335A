@@ -341,4 +341,151 @@ legend('show','Location','best')
 grid on
 hold off
 
-%%
+%% q2.0
+close all 
+k_array = [1,2,4];
+i_array = [1,4,5,6];
+nel_array = 2.^(i_array(:));
+
+v_w_func = @(w, x) cos(w * x);
+w_w_func = @(w, x) max(x.^w, 0);
+
+u_func = @(x) v_w_func(30.0, x);
+coord = [-1.0, 1.0];
+plot_size = 50; % plot size per mesh
+[int_func_array, plot_coord_array] = assemble(nel_array(4), k_array(2), coord, u_func, plot_size);
+total_plot_size = plot_size * nel_array(4);
+plot_func(plot_coord_array, int_func_array, u_func);
+
+function plotConvergence(h_array, error_array)
+
+    % Check inputs
+    if length(h_array) ~= length(error_array)
+        error('Input arrays must be of the same length.')
+    end
+
+    % Create figure
+    figure('Color', 'w', 'Units', 'inches', 'Position', [1 1 7 5])
+
+    % Create log-log plot
+    loglog(h_array, error_array, 'ko-', 'LineWidth', 2, 'MarkerSize', 10)
+
+    % Calculate and display the slope of the line
+    P = polyfit(log(h_array(end-1:end)), log(error_array(end-1:end)), 1);
+    disp(['The slope of the line is ', num2str(P(1))])
+
+    % Add line showing slope
+    hold on
+    loglog(h_array, exp(P(2))*h_array.^P(1), 'r--', 'LineWidth', 2)
+
+    % Add labels, title, and legend
+    xlabel('Log(HMax)', 'FontSize', 14)
+    ylabel('log(e_{a,2}(u_i - u_{i+1}))', 'FontSize', 14)
+    title('Convergence Plot', 'FontSize', 16)
+    legend('Data', ['Slope = ', num2str(P(1))], 'Location', 'best')
+    grid on
+    % Set axes properties
+    set(gca, 'FontSize', 12, 'Box', 'on', 'XMinorTick', 'on', 'YMinorTick', 'on', 'XScale', 'log', 'YScale', 'log')
+
+end
+
+function plot_func(plot_coord_array, int_value_array, exact_func)
+    % Input:
+    % int_func - symbolic function with variable x
+    % exact_func - anonymous function
+    % coords - array of two endpoints
+
+    y_values = exact_func(plot_coord_array);
+    
+    % Create a new figure
+    figure;
+    
+    % Plot the symbolic function
+    plot(plot_coord_array, int_value_array, 'LineWidth', 2, 'DisplayName', 'int\_func');
+    hold on;
+    
+    % Plot the anonymous function
+    plot(plot_coord_array, y_values, 'LineWidth', 2, 'DisplayName', 'exact\_func');
+    
+    % Add title and labels
+    title('Comparison of int\_func and exact\_func');
+    xlabel('x');
+    ylabel('y');
+    
+    % Add legend
+    legend('Location', 'best');
+    
+    hold off;
+end
+
+
+function [int_func_array, plot_coord_array] = assemble(nel, k, coord, u_func, plot_size)
+    % nel: element number
+    % k: polynomial order
+    % coord: end points of the entire domain
+    % u_func: ground truth
+    %int_func_value = zeros(plot_size, 1);
+    plot_coord_array = zeros(1, plot_size*nel );
+    int_func_array = zeros(1, plot_size*nel );
+    coord_array = linspace(coord(1), coord(2), nel + 1);
+    for i = 1:nel
+        % loop through element
+        x_coord = coord_array(i: i+1);
+        L = lagrange_interpolant(k, x_coord, u_func);
+        plot_coord = linspace(x_coord(1), x_coord(2), plot_size);
+        for j = 1:k+1
+            % loop through local shape functions
+            %disp(plot_coord(1,:));
+            int_func_array(1, ( i-1)*plot_size + 1 : i*plot_size) = int_func_array(1, ( i-1)*plot_size + 1 : i*plot_size) +...
+                                        double(subs(L(j), plot_coord(1,:)));
+           
+            plot_coord_array(1, ( i-1)*plot_size + 1 : i*plot_size) = plot_coord(1,:);
+            %disp(double(subs(L(j), plot_coord(1,:))));
+            %int_func = int_func + L(j);
+        end 
+    end
+    
+end
+
+function L = lagrange_interpolant(k, x_coord, u_func)
+    % Input: 
+    % k - order of the Lagrange polynomial
+    % x_coord - vector with start and end points of the interval [x_start, x_end]
+    % u_func is the function to be approximated 
+
+    % Create k+1 equally spaced nodes within the interval
+    x_nodes = linspace(x_coord(1), x_coord(2), k+1);
+    u_values = u_func(x_nodes);
+
+    % Declare x as symbolic variable
+    syms x;
+
+    % Initialize L as a zero polynomial
+    L = sym(zeros(1, k+1));
+
+    % Compute the Lagrange polynomials
+    for j = 1:(k+1)
+        % Start with L_j(x) = 1
+        L(j) = 1;
+
+        % Multiply by (x - x_i) / (x_j - x_i) for all i ≠ j
+        for i = 1:(k+1)
+            if i ~= j
+                L(j) = L(j) * (x - x_nodes(i)) / (x_nodes(j) - x_nodes(i));
+            end
+        end
+        L(j) = L(j)*u_values(j);
+    end
+
+    %Modify the Lagrange polynomials so they are 0 outside of x_coord
+    for j = 1:(k+1)
+        L(j) = piecewise(x < x_coord(1), 0, x > x_coord(2), 0, L(j));
+    end
+
+end
+
+
+
+
+
+
