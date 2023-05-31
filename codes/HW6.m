@@ -512,28 +512,27 @@ nel_array = 2.^(i_array(:)) + 1;
 v_w_func = @(w, x) cos(w * x);
 w_w_func = @(w, x) max(x.^w, 0);
 
-u_func = @(x) v_w_func(30.0, x);
+u_func = @(x) v_w_func(1.0, x);
 coord = [-1.0, 1.0];
 plot_size = 20; % plot size per mesh
 
-% for m_i = 1:size(m_array, 2)
-%     [int_func_array, plot_coord_array] = q4_assemble(nel_array(2), k, coord, u_func, plot_size, m_array(m_i) );
-%     %total_plot_size = plot_size * nel_array(1);
-%     plot_func(plot_coord_array, int_func_array, u_func);
-% end
+for m_i = 1:size(m_array, 2)
+    [int_func_array, plot_coord_array] = q4_assemble(nel_array(2), k, coord, u_func, plot_size, m_array(m_i) );
+    %total_plot_size = plot_size * nel_array(1);
+    plot_func(plot_coord_array, int_func_array, u_func);
+end
 
 %% q4.1 || u - u_h||_{1,2}
 m_array= [1,2,4];
 u_h1_norm_array = zeros(size(nel_array, 1), 3);
-
 u_l2_norm_array = zeros(size(nel_array, 1), 3);
 
 for m_i = 1:size(m_array, 2)
     for i_i = 1:size(i_array,2)
         [int_func_array, plot_coord_array] = q4_assemble(nel_array(i_i), k, coord, u_func, plot_size, m_array(m_i));
-        [u_l2, u_h1_semi] = calcQ2NormNum(int_func_array, plot_coord_array, u_func);
-        u_h1 = calcQ4NormNum(int_func_array, plot_coord_array, u_func);
-        u_h1_norm_array(i_i, m_i) = u_h1; 
+        [u_l2, u_prime_l2] = calcNormNum(int_func_array, plot_coord_array, u_func);
+        %u_h1 = calcQ4NormNum(int_func_array, plot_coord_array, u_func);
+        u_h1_norm_array(i_i, m_i) = u_prime_l2; 
         u_l2_norm_array(i_i, m_i) = u_l2;
 
     end
@@ -544,7 +543,7 @@ y_name = "log(||u - Iu||_{0, 2})";
 plotConvergenceQ4(nel_array, u_l2_norm_array, m_array, y_name);
 
 %%
-y_name = "log(||u' - Iu'||_{1, 2})";
+y_name = "log(||u' - Iu'||_{0, 2})";
 plotConvergenceQ4(nel_array, u_h1_norm_array, m_array, y_name);
 
 
@@ -884,7 +883,7 @@ function L = q4_lagrange_interpolant(k, x_coord, u_func, m, h)
             end
         end
         if (abs( x_coord(2) - 1.0) < 1e-10)
-            u_values(j) = u_values(j) - h^m / 10;
+            u_values(j) = u_values(j) + h^m;
         end
         L(j) = L(j)*u_values(j);
     end
