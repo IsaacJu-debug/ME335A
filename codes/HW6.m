@@ -165,7 +165,7 @@ f_diff_derivative_squared = (diff(f_diff, x))^2;
 
 % compute the integrals of the squares and their square roots
 l2_norm = sqrt(int(f_diff_squared, x, 0, pi));
-h1_norm = sqrt(int(f_diff_squared + f_diff_derivative_squared, x, 0, pi));
+h1_norm = sqrt(int(f_diff_squared, x, 0, pi) + int(f_diff_derivative_squared, x, 0, pi));
 
 % convert symbolic expressions to function handles for numerical evaluation
 l2_norm_handle = matlabFunction(l2_norm, 'Vars', {n});
@@ -186,18 +186,6 @@ for i = 1:numel(n_values)
     inf_norm_values(i) = max(abs(f_diff_handle(n_values(i), x)));
 end
 
-% create and configure the plot
-% figure
-% hold on
-% plot(n_values, l2_norm_values, 'DisplayName', 'L2 Norm')
-% plot(n_values, inf_norm_values, 'DisplayName', 'Infinity Norm')
-% plot(n_values, h1_norm_values, 'DisplayName', 'H1 Norm')
-% xlabel('n')
-% ylabel('Norm')
-% title('Plot of L2, Infinity, and H1 Norms vs n')
-% legend('show','Location','best')
-% hold off
-%%
 % create and configure the plot
 figure
 loglog(n_values, l2_norm_values, 'LineWidth', 2, 'DisplayName', 'L2 Norm')
@@ -228,11 +216,13 @@ f_diff_squared = f_diff^2;
 
 % calculate the square of the derivative of the difference
 f_diff_derivative_squared = (diff(f_diff, x))^2;
+disp(f_diff_derivative_squared);
 
 % compute the integrals of the squares and their square roots
 l2_norm = sqrt(int(f_diff_squared, x, 0, pi));
-h1_norm = sqrt(int(f_diff_squared + f_diff_derivative_squared, x, 0, pi));
 
+h1_norm = sqrt(int(f_diff_squared,  x, 0, pi) + int(f_diff_derivative_squared, x, 0, pi));
+disp(h1_norm);
 % convert symbolic expressions to function handles for numerical evaluation
 l2_norm_handle = matlabFunction(l2_norm, 'Vars', {n});
 h1_norm_handle = matlabFunction(h1_norm, 'Vars', {n});
@@ -291,13 +281,21 @@ f_diff = f_n - f_inf;
 f_diff_squared = f_diff^2;
 
 % calculate the square of the derivative of the difference
-f_diff_derivative_squared = (diff(f_diff, x))^2;
+f_diff_derivative_squared = (diff(f_diff, x))^2; % Check this part. 
 
 % compute the integrals of the squares and their square roots
-%l2_norm = sqrt(int(f_diff_squared, x, 0.0, pi));
+%l2_norm = sqrt(int(f_diff_squared, x, 0.0, pi)); % Check this part. 
+
 l2_norm = (pi / (n * pi + 1))^0.5;
-%h1_norm = sqrt(int(f_diff_squared + f_diff_derivative_squared, x, 0.0, pi));
-h1_norm = ((n^2/3 + 1)/n - ((pi^2 + 1/3)*n^2 + 2*pi*n + 1)/(n*(n*pi + 1)^3)) ^0.5; 
+disp(f_diff_derivative_squared);
+disp(int(f_diff_squared, x, 0.0, pi));
+disp(int(f_diff_derivative_squared, x, 0.0, pi));
+
+h1_norm_square = int(f_diff_squared, x, 0.0, pi)  + int( f_diff_derivative_squared, x, 0.0, pi);
+disp(h1_norm_square);
+%h1_norm = sqrt(h1_norm_square);
+
+h1_norm = ( n/3 + pi/(pi*n + 1) - n/(3*(n*pi + 1)^3)) ^0.5; 
 
 % convert symbolic expressions to function handles for numerical evaluation
 l2_norm_handle = matlabFunction(l2_norm, 'Vars', {n});
@@ -692,6 +690,7 @@ function plotConvergenceQ4(h_array, error_array, k_array, y_axis)
 
         % Calculate and display the slope of the line
         P = polyfit(log(h_array(:)), log(error_array(:, i)), 1);
+        
         disp(['The slope of the line for m = ', num2str(k_array(i)), ' is ', num2str(P(1))])
 
         % Add line showing slope
