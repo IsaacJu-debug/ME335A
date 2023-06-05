@@ -27,7 +27,7 @@ display("Elasticity problems with P2 finite elements")
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
-[X, LV, BE, BN]=CP3Mesh(0.1,0.0);
+[X, LV, BE, BN]=CP3Mesh(0.1,1.0);
 fname='u4';
 nel=size(LV,2);
 npe=size(LV,1);
@@ -46,7 +46,7 @@ LG=[LV; LV+nod];
 % boundary values
 % <<-------------------------------------------------------------------->>
 % Complete with the value of EtaG, GG.
-gy2=0.05;
+gy2=0.00;
 
 EtaG=[BN(1,BN(2,:)==2),BN(1,BN(2,:)==4)]; % Constrained indices
 GG=zeros(size(EtaG,2),2);   % Value of u for each constrained index
@@ -58,10 +58,10 @@ GG(Etag2==2,2)=gy2;
 % <<-------------------------------------------------------------------->>
 
 % material parameters
-EE  = 1*1e6*ones(1,nel);
-nu = 0.0*ones(1,nel);
+EE  = 0.001*1e6*ones(1,nel);
+nu = 0.45*ones(1,nel);
 rho = 10*ones(1,nel);
-grav = [0;0];
+grav = [0;-9.81];
 bb = grav*rho;
 
 
@@ -231,10 +231,10 @@ for i1=1:12
     for jj=1:3
         for i2=1:12
             %Ui=dNa(:,2*i2-1:2*i2,jj);
-            if (i2 == 5)
-                disp(sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
-                BB(:,2*i2-1:2*i2,jj))))
-            end
+%             if (i2 == 5)
+%                 disp(sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
+%                 BB(:,2*i2-1:2*i2,jj))))
+%             end
             Ke(i2, i1)=Ke(i2, i1)+sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
                 BB(:,2*i2-1:2*i2,jj)))*A2/6;
         end

@@ -27,7 +27,7 @@ display("Elasticity problems with P2 finite elements")
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
-[X, LV, BE, BN]=CP3Mesh(0.1,0);
+[X, LV, BE, BN]=CP3Mesh(0.1,1.0);
 fname='u4';
 nel=size(LV,2);
 npe=size(LV,1);
@@ -46,7 +46,10 @@ LG=[LV; LV+nod];
 % boundary values
 % <<-------------------------------------------------------------------->>
 % Complete with the value of EtaG, GG.
-g2y = 0.05; % displacement component imposed on Gamma_g2
+
+% g2y = 0.05; % q2
+g2y = 0.0; % q3
+
 indices = (BN(2,:) == 2) | (BN(2,:) == 4); % Dirichlet boundary
 EtaG= BN(1, indices); % Constrained indices
 
@@ -62,10 +65,11 @@ GG(EtaGPos(:) == 4, 2) = 0.0;  % Value of u for each constrained index [C]
 % <<-------------------------------------------------------------------->>
 
 % material parameters
-EE  = 1e6*ones(1,nel); % Young's modulus
-nu = 0.0*ones(1,nel); % poisson's ratio 
-rho = 10*ones(1,nel);
-grav = [0;0];
+EE  = 0.001* 1e6*ones(1,nel); % Young's modulus
+%nu = 0.0*ones(1,nel); % q2 poisson's ratio 
+nu = 0.45*ones(1,nel); % q3 poisson's ratio 
+rho = 10*ones(1,nel); % kg/m3
+grav = [0;-9.81]; % m/s^2
 bb = grav*rho;
 
 %% debugging local stiffness matrix
@@ -154,22 +158,38 @@ figure(4)
 clf
 trimesh(LVn(:,:)',Xn(1,:),Xn(2,:),Strains(2,2,:),"facecolor", "interp","linewidth",1)
 title('epsilon(2,2) component of the strain')
+colorbar
+
 figure(5)
 clf
-trimesh(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(2,2,:),"facecolor", "interp","linewidth",1)
+trisurf(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(2,2,:),"facecolor", "interp","linewidth",1)
 title('Sigma(2,2) component of the stress')
 %view([180, 0]);
+colorbar
+
 figure(6)
 clf
-trimesh(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(1,1,:),"facecolor", "interp","linewidth",1)
+trisurf(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(1,1,:),"facecolor", "interp","linewidth",1)
 title('Sigma(1,1) component of the stress')
+colorbar
+
 figure(7)
 clf
-trimesh(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(1,2,:),"facecolor", "interp","linewidth",1)
+trisurf(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(1,2,:),"facecolor", "interp","linewidth",1)
 title('Sigma(1,2) component of the stress')
-
-
-
+colorbar
+%%
+% figure(8)
+% clf
+% trisurf(LVn(:,:)',Xn(1,:),Xn(2,:),Strains(2,2,:),"facecolor", "interp","linewidth",1)
+% title('epsilon(2,2) component of the strain')
+% colorbar
+% 
+% figure(9)
+% clf
+% trisurf(LVn(:,:)',Xn(1,:),Xn(2,:),Stresses(2,2,:),"facecolor", "interp","linewidth",1)
+% title('Sigma(2,2) component of the stress')
+% colorbar
 
 %% Element matrix and load
 function [Ke,Fe]=elementKandF(xe,Ee,nue,be)
@@ -338,5 +358,6 @@ function [Strains, Stresses]=computeStrainAndStress(xe,ue,Ee,nue)
             Stresses(:, :, i) = Stresses(:, :, i) + SS(:, :, iDof)*ue(iDof);
         end
     end
+    Stresses = Stresses ./ 1e6; % convert to MPa
 % <<-------------------------------------------------------------------->>
 end
