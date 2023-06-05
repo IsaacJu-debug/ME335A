@@ -46,13 +46,24 @@ LG=[LV; LV+nod];
 % boundary values
 % <<-------------------------------------------------------------------->>
 % Complete with the value of EtaG, GG.
-EtaG=; % Constrained indices
-GG=;   % Value of u for each constrained index
+g2y = 0.05; % displacement component imposed on Gamma_g2
+indices = (BN(2,:) == 2) | (BN(2,:) == 4); % Dirichlet boundary
+EtaG= BN(1, indices); % Constrained indices
+
+GG = zeros(size(EtaG, 2), 2);
+EtaGPos = BN(2, indices);
+
+GG(EtaGPos(:) == 2, 2) = g2y;
+GG(EtaGPos(:) == 4, 1) = 0.0;  % Value of u for each constrained index [C]
+GG(EtaGPos(:) == 4, 2) = 0.0;  % Value of u for each constrained index [C]
+
+% as there is no traction applied, "do nothing boundary is applied"
+
 % <<-------------------------------------------------------------------->>
 
 % material parameters
-EE  = 1e6*ones(1,nel);
-nu = 0.45*ones(1,nel);
+EE  = 1e6*ones(1,nel); % Young's modulus
+nu = 0.45*ones(1,nel); % poisson's ratio 
 rho = 10*ones(1,nel);
 grav = [0;0];
 bb = grav*rho;
@@ -77,9 +88,12 @@ end
 % nodes with specified value
 ng=length(EtaG); 
 II=sparse([1:nunk],[1:nunk],1,nunk,nunk);
+
 for ig=1:ng
- K(EtaG(ig),:)=II(EtaG(ig),:);
- F(EtaG(ig))=GG(ig);
+    K(EtaG(ig),:)=II(EtaG(ig),:);
+    F(EtaG(ig))=GG(ig,1);
+    K(EtaG(ig)+nod,:)=II(EtaG(ig)+nod,:);
+    F(EtaG(ig)+nod)=GG(ig,2);
 end
 
 %% solve algebraic system
@@ -152,9 +166,113 @@ title('Sigma(1,2) component of the stress')
 function [Ke,Fe]=elementKandF(xe,Ee,nue,be);
 % <<-------------------------------------------------------------------->>
 % Complete by computing Ke and Fe with a 3-point quadrature
+% input: xe coordintes [2,6]
+%        Ee Young's modulus
+%        nue Poisson's ratio
+%        be Body force [2,1]
+    nodeNum = size(xe, 2);
+    dofNum = size(xe, 2)*2;
+    Ke = zeros(dofNum, dofNum);
+    Fe = zeros(dofNum, 1);
+    
+    mue=Ee/(1+nue)/2; %
+    lambdae=mue*nue/(1-2*nue); %
+    
+    dLdx=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
+          xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
+    A2 = ((xe(2,2)-xe(2,3))*(xe(1,1)-xe(1,2))+(xe(1,3)-xe(1,2))*(xe(2,1)-xe(2,2)));
+    
+    nq = 3;
+    % Define the 3 Gauss quadrature points and weights.
+    gp = [1/6, 1/6, 2/3; 1/6, 2/3, 1/6; 2/3, 1/6, 1/6];
+    w = [1/3, 1/3, 1/3]*A2/2;
+
+    [dNdx,N1x]=P2elementsX1(xe,dLdx,A2); % dNdx [2, 12]; N1x [2, 6]
+    [dNdy,N1y]=P2elementsX2(xe,dLdx,A2);
+    
+    BB = zeros(2,2,dofNum);
+    DD = zeros(dofNum);
+    SS = zeros(2,2,dofNum);
+    
+    for i = 1:nq
+        xq = xe(:, 1: 3)*gp(i, :)'; % get the coordinates of quadrature points
+        % Calculate the shape functions and their derivatives at the quadrature point.
+
+        dNdx_q = dNdx(xq);
+        dNdy_q = dNdy(xq);
+        
+        N1x_q = N1x(xq);
+        N1y_q = N1y(xq);
+        for iNode = 1:nodeNum
+            BB(1:2, 1:2, iNode) = [dNdx_q(1, iNode*2 - 1), 0.5*dNdx_q(1, iNode*2); 0.5*dNdx_q(1, iNode*2), 0.0];
+            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2-1)];
+            
+            Fe(iNode,1) = Fe(iNode) + w(i) * be'*N1x_q(:, iNode);
+            Fe(iNode+6,1) = Fe(iNode+6) + w(i) * be'* N1y_q(:, iNode);
+        end
+        
+        for iDof = 1:dofNum
+            DD(iDof) = sum(diag(BB(:, :, iDof)));
+            SS(1:2, 1:2, iDof) = 2*mue*BB(:,:,iDof) + lambdae * DD(iDof)* eye(2);
+        end
+        
+        % Build Ke and Fe
+        for a = 1:dofNum
+            for b = 1:dofNum
+                Ke(a,b) = Ke(a,b) + w(i)*sum(sum(SS(:, :, b).*BB(:,:, a)));
+            end
+        end
+    end
 % <<-------------------------------------------------------------------->>
 end
 
+function [dN,N]=P2elementsX1(xe,dLdx,A2)
+    % dN is gradN_tilda [1,6]
+    % N is P2 function [2,6]
+    lambda1 = @(x)((xe(2,2)-xe(2,3))*(x(1)-xe(1,2))+(xe(1,3)-xe(1,2))*(x(2)-xe(2,2))...
+          )/A2;
+    lambda2 = @(x)((xe(2,3)-xe(2,1))*(x(1)-xe(1,3))+(xe(1,1)-xe(1,3))*(x(2)-xe(2,3))...
+          )/A2;
+    lambda3 = @(x)((xe(2,1)-xe(2,2))*(x(1)-xe(1,1))+(xe(1,2)-xe(1,1))*(x(2)-xe(2,1))...
+          )/A2;
+    
+    dN1=@(x) (1/A2).*[4.*lambda1(x)-1,0,0;0,0,0]*dLdx';
+    dN2=@(x) (1/A2).*[0,4.*lambda2(x)-1,0;0,0,0]*dLdx';
+    dN3=@(x) (1/A2).*[0,0,4.*lambda3(x)-1;0,0,0]*dLdx';
+
+    dN4=@(x) (1/A2).*[4.*lambda2(x),4.*lambda1(x),0;0,0,0]*dLdx';
+    dN5=@(x) (1/A2).*[0,4.*lambda2(x),4.*lambda2(x);0,0,0]*dLdx';
+    dN6=@(x) (1/A2).*[4.*lambda3(x),0,4.*lambda1(x);0,0,0]*dLdx';
+
+    dN=@(x) [dN1(x), dN2(x), dN3(x), dN4(x), dN5(x), dN6(x)];
+    N=@(x) [2*lambda1(x).*(lambda1(x)-0.5), 2*lambda2(x).*(lambda2(x)-0.5), 2*lambda3(x).*(lambda3(x)-0.5),...
+            4*lambda1(x).*lambda2(x), 4*lambda3(x).*lambda2(x), 4*lambda1(x).*lambda3(x);
+            0,0,0,0,0,0];
+end
+
+function [dN,N]=P2elementsX2(xe,dNdL,A2)
+    % dN is gradN_tilda [1,6]
+    % N is P2 function [2,6]
+    lambda1 = @(x)((xe(2,2)-xe(2,3))*(x(1)-xe(1,2))+(xe(1,3)-xe(1,2))*(x(2)-xe(2,2))...
+          )/A2;
+    lambda2 = @(x)((xe(2,3)-xe(2,1))*(x(1)-xe(1,3))+(xe(1,1)-xe(1,3))*(x(2)-xe(2,3))...
+          )/A2;
+    lambda3 = @(x)((xe(2,1)-xe(2,2))*(x(1)-xe(1,1))+(xe(1,2)-xe(1,1))*(x(2)-xe(2,1))...
+          )/A2;
+    
+    dN1=@(x) (1/A2).*[0,0,0;4.*lambda1(x)-1,0,0]*dNdL';
+    dN2=@(x) (1/A2).*[0,0,0;0,4.*lambda2(x)-1,0]*dNdL';
+    dN3=@(x) (1/A2).*[0,0,0;0,0,4.*lambda3(x)-1]*dNdL';
+
+    dN4=@(x) (1/A2).*[0,0,0;4.*lambda2(x),4.*lambda1(x),0]*dNdL';
+    dN5=@(x) (1/A2).*[0,0,0;0,4.*lambda2(x),4.*lambda2(x)]*dNdL';
+    dN6=@(x) (1/A2).*[0,0,0;4.*lambda3(x),0,4.*lambda1(x)]*dNdL';
+
+    dN=@(x) [dN1(x), dN2(x), dN3(x), dN4(x), dN5(x), dN6(x)];
+    N=@(x) [0,0,0,0,0,0;
+            2*lambda1(x).*(lambda1(x)-0.5), 2*lambda2(x).*(lambda2(x)-0.5), 2*lambda3(x).*(lambda3(x)-0.5),...
+            4*lambda1(x).*lambda2(x), 4*lambda3(x).*lambda2(x), 4*lambda1(x).*lambda3(x)];
+end
 
 %% Stresses and Strains
 function [Strains, Stresses]=computeStrainAndStress(xe,ue,Ee,nue)
@@ -162,5 +280,48 @@ function [Strains, Stresses]=computeStrainAndStress(xe,ue,Ee,nue)
 % A lot of repeated code, only done for simplicity of explanation.
 % <<-------------------------------------------------------------------->>
 % Complete by computing Strains and Stresses 
+% input: ue [12, 1]
+    nodeNum = size(xe, 2);
+    dofNum = size(xe, 2)*2;
+    Ke = zeros(dofNum, dofNum);
+    Fe = zeros(dofNum, 1);
+    
+    mue=Ee/(1+nue)/2; %
+    lambdae=mue*nue/(1-2*nue); %
+    
+    dLdx=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
+          xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
+    A2 = ((xe(2,2)-xe(2,3))*(xe(1,1)-xe(1,2))+(xe(1,3)-xe(1,2))*(xe(2,1)-xe(2,2)));
+    
+    nq = 3;
+    [dNdx,N1x]=P2elementsX1(xe,dLdx,A2); % dNdx [2, 12]; N1x [2, 6]
+    [dNdy,N1y]=P2elementsX2(xe,dLdx,A2);
+    
+    BB = zeros(2,2,dofNum);
+    DD = zeros(dofNum);
+    SS = zeros(2,2,dofNum);
+    Strains=zeros(2,2,3);
+    Stresses=zeros(2,2,3);
+    
+    for i = 1:nq
+        xq = xe(:, i); % get the coordinates of quadrature points
+        % Calculate the shape functions and their derivatives at the quadrature point.
+
+        dNdx_q = dNdx(xq);
+        dNdy_q = dNdy(xq);
+        
+        for iNode = 1:nodeNum
+            BB(1:2, 1:2, iNode) = [dNdx_q(1, iNode*2 - 1), 0.5*dNdx_q(1, iNode*2); 0.5*dNdx_q(1, iNode*2), 0.0];
+            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2-1)]; 
+            
+        end
+        
+        for iDof = 1:dofNum
+            DD(iDof) = sum(diag(BB(:, :, iDof)));
+            SS(1:2, 1:2, iDof) = 2*mue*BB(:,:,iDof) + lambdae * DD(iDof)* eye(2);
+            Strains(:, :, iDof) = Strains(:, :, iDof) + BB(:,:,iDof)*ue(iDof);
+            Stresses(:, :, iDof) = Stresses(:, :, iDof) + SS(:, :, iDof)*ue(iDof);
+        end
+    end
 % <<-------------------------------------------------------------------->>
 end
