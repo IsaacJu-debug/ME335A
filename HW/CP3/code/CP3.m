@@ -27,7 +27,7 @@ display("Elasticity problems with P2 finite elements")
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
-[X, LV, BE, BN]=CP3Mesh(0.1,0.1);
+[X, LV, BE, BN]=CP3Mesh(0.1,0.0);
 fname='u4';
 nel=size(LV,2);
 npe=size(LV,1);
@@ -59,7 +59,7 @@ GG(Etag2==2,2)=gy2;
 
 % material parameters
 EE  = 1*1e6*ones(1,nel);
-nu = 0.45*ones(1,nel);
+nu = 0.0*ones(1,nel);
 rho = 10*ones(1,nel);
 grav = [0;0];
 bb = grav*rho;
@@ -191,29 +191,57 @@ dNdL=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
 A2 = ((xe(2,2)-xe(2,3))*(xe(1,1)-xe(1,2))+(xe(1,3)-xe(1,2))*(xe(2,1)-xe(2,2)));
 [dNx,Nx]=P2elementsX(xe,dNdL,A2);
 [dNy,Ny]=P2elementsY(xe,dNdL,A2);
-dNa=zeros(2,24,3); dEa=zeros(2,24,3);
+dNa=zeros(2,24,3); dEa=zeros(2,24,3); BB = zeros(2, 24, 3);
 Na=zeros(2,12,3);
+
+ % Define the 3 Gauss quadrature points and weights.
+ gp = [1/6, 1/6, 2/3; 1/6, 2/3, 1/6; 2/3, 1/6, 1/6];
+    
+% for jj=1:3
+%     dNa(:,:,jj)=[dNx(xe(:,jj)), dNy(xe(:,jj))];
+%     Na(:,:,jj)=[Nx(xe(:,jj)), Ny(xe(:,jj))];
+% end
+
 for jj=1:3
-    dNa(:,:,jj)=[dNx(xe(:,jj)), dNy(xe(:,jj))];
-    Na(:,:,jj)=[Nx(xe(:,jj)), Ny(xe(:,jj))];
+    xq = xe(:, 1: 3)*gp(jj, :)'; % get the coordinates of quadrature points
+    dNa(:,:,jj)=[dNx(xq), dNy(xq)];
+    Na(:,:,jj)=[Nx(xq), Ny(xq)];
 end
+
 Ke=zeros(12,12); Fe=zeros(12,1);
 for jj=1:3
     for kk=1:12
         Ui=dNa(:,2*kk-1:2*kk,jj);
         Du=sum(sum(eye(2).*Ui));
         dEa(:,2*kk-1:2*kk,jj)=mue*(Ui+Ui')/2+lambdae*Du*eye(2);
+        BB(:,2*kk-1:2*kk,jj) = (Ui+Ui')/2;
     end
 end
+% for i1=1:12
+%     for jj=1:3
+%         for i2=1:12
+%             Ke(i2, i1)=Ke(i2, i1)+sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
+%                 dNa(:,2*i2-1:2*i2,jj)))*A2/6;
+%         end
+%         Fe(i1)=Fe(i1)+dot(be,Na(:,i1,jj))*A2/6;
+%     end
+% end
+
 for i1=1:12
     for jj=1:3
         for i2=1:12
+            %Ui=dNa(:,2*i2-1:2*i2,jj);
+            if (i2 == 5)
+                disp(sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
+                BB(:,2*i2-1:2*i2,jj))))
+            end
             Ke(i2, i1)=Ke(i2, i1)+sum(sum(dEa(:,2*i1-1:2*i1,jj).*...
-                dNa(:,2*i2-1:2*i2,jj)))*A2/6;
+                BB(:,2*i2-1:2*i2,jj)))*A2/6;
         end
         Fe(i1)=Fe(i1)+dot(be,Na(:,i1,jj))*A2/6;
     end
 end
+
 % Neumann Boundary conditions for all our problems are zero
 % As traction free surfaces are considered.
 % <<-------------------------------------------------------------------->>

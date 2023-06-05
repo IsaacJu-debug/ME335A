@@ -27,7 +27,7 @@ display("Elasticity problems with P2 finite elements")
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
-[X, LV, BE, BN]=CP3Mesh(0.08,1);
+[X, LV, BE, BN]=CP3Mesh(0.1,0);
 fname='u4';
 nel=size(LV,2);
 npe=size(LV,1);
@@ -63,10 +63,19 @@ GG(EtaGPos(:) == 4, 2) = 0.0;  % Value of u for each constrained index [C]
 
 % material parameters
 EE  = 1e6*ones(1,nel); % Young's modulus
-nu = 0.45*ones(1,nel); % poisson's ratio 
+nu = 0.0*ones(1,nel); % poisson's ratio 
 rho = 10*ones(1,nel);
 grav = [0;0];
 bb = grav*rho;
+
+%% debugging local stiffness matrix
+% xe = [ 0.2170, 0.3072, 0.3052, 0.2621, 0.3062, 0.2611;
+%         -0.0516, -0.0978, -2.4275e-4, -0.0747, -0.0490, -0.0259];
+% iel = 1;
+% be=bb(:,iel);
+% Ee=EE(iel);
+% nue=nu(iel);   
+% [Ke,Fe]=elementKandF(xe,Ee,nue,be);
 
 %% assembly, from local to global
 K=sparse(nunk,nunk);
@@ -163,7 +172,7 @@ title('Sigma(1,2) component of the stress')
 
 
 %% Element matrix and load
-function [Ke,Fe]=elementKandF(xe,Ee,nue,be);
+function [Ke,Fe]=elementKandF(xe,Ee,nue,be)
 % <<-------------------------------------------------------------------->>
 % Complete by computing Ke and Fe with a 3-point quadrature
 % input: xe coordintes [2,6]
@@ -190,13 +199,12 @@ function [Ke,Fe]=elementKandF(xe,Ee,nue,be);
     [dNdx,N1x]=P2elementsX1(xe,dLdx,A2); % dNdx [2, 12]; N1x [2, 6]
     [dNdy,N1y]=P2elementsX2(xe,dLdx,A2);
     
-    BB = zeros(2,2,dofNum);
-    DD = zeros(dofNum);
-    SS = zeros(2,2,dofNum);
-    
     for i = 1:nq
         xq = xe(:, 1: 3)*gp(i, :)'; % get the coordinates of quadrature points
         % Calculate the shape functions and their derivatives at the quadrature point.
+        BB = zeros(2,2,dofNum);
+        DD = zeros(dofNum,1);
+        SS = zeros(2,2,dofNum);
 
         dNdx_q = dNdx(xq);
         dNdy_q = dNdy(xq);
@@ -204,11 +212,15 @@ function [Ke,Fe]=elementKandF(xe,Ee,nue,be);
         N1x_q = N1x(xq);
         N1y_q = N1y(xq);
         for iNode = 1:nodeNum
+%             if (iNode == 5)
+%                 disp(dNdx_q)
+%             end
+%             
             BB(1:2, 1:2, iNode) = [dNdx_q(1, iNode*2 - 1), 0.5*dNdx_q(1, iNode*2); 0.5*dNdx_q(1, iNode*2), 0.0];
-            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2-1)];
+            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2)];
             
-            Fe(iNode,1) = Fe(iNode) + w(i) * be'*N1x_q(:, iNode);
-            Fe(iNode+6,1) = Fe(iNode+6) + w(i) * be'* N1y_q(:, iNode);
+            Fe(iNode,1) = Fe(iNode, 1) + w(i) * be'*N1x_q(:, iNode);
+            Fe(iNode+6,1) = Fe(iNode+6, 1) + w(i) * be'* N1y_q(:, iNode);
         end
         
         for iDof = 1:dofNum
@@ -219,6 +231,9 @@ function [Ke,Fe]=elementKandF(xe,Ee,nue,be);
         % Build Ke and Fe
         for a = 1:dofNum
             for b = 1:dofNum
+%                 if (a == 5)
+%                     disp(sum(sum(SS(:, :, b).*BB(:,:, a))))
+%                 end
                 Ke(a,b) = Ke(a,b) + w(i)*sum(sum(SS(:, :, b).*BB(:,:, a)));
             end
         end
@@ -241,7 +256,7 @@ function [dN,N]=P2elementsX1(xe,dLdx,A2)
     dN3=@(x) (1/A2).*[0,0,4.*lambda3(x)-1;0,0,0]*dLdx';
 
     dN4=@(x) (1/A2).*[4.*lambda2(x),4.*lambda1(x),0;0,0,0]*dLdx';
-    dN5=@(x) (1/A2).*[0,4.*lambda2(x),4.*lambda2(x);0,0,0]*dLdx';
+    dN5=@(x) (1/A2).*[0,4.*lambda3(x),4.*lambda2(x);0,0,0]*dLdx';
     dN6=@(x) (1/A2).*[4.*lambda3(x),0,4.*lambda1(x);0,0,0]*dLdx';
 
     dN=@(x) [dN1(x), dN2(x), dN3(x), dN4(x), dN5(x), dN6(x)];
@@ -265,7 +280,7 @@ function [dN,N]=P2elementsX2(xe,dNdL,A2)
     dN3=@(x) (1/A2).*[0,0,0;0,0,4.*lambda3(x)-1]*dNdL';
 
     dN4=@(x) (1/A2).*[0,0,0;4.*lambda2(x),4.*lambda1(x),0]*dNdL';
-    dN5=@(x) (1/A2).*[0,0,0;0,4.*lambda2(x),4.*lambda2(x)]*dNdL';
+    dN5=@(x) (1/A2).*[0,0,0;0,4.*lambda3(x),4.*lambda2(x)]*dNdL';
     dN6=@(x) (1/A2).*[0,0,0;4.*lambda3(x),0,4.*lambda1(x)]*dNdL';
 
     dN=@(x) [dN1(x), dN2(x), dN3(x), dN4(x), dN5(x), dN6(x)];
@@ -281,8 +296,8 @@ function [Strains, Stresses]=computeStrainAndStress(xe,ue,Ee,nue)
 % <<-------------------------------------------------------------------->>
 % Complete by computing Strains and Stresses 
 % input: ue [12, 1]
-    nodeNum = size(xe, 2);
-    dofNum = size(xe, 2)*2;
+    nodeNum = 6;
+    dofNum = 12;
     Ke = zeros(dofNum, dofNum);
     Fe = zeros(dofNum, 1);
     
@@ -312,15 +327,15 @@ function [Strains, Stresses]=computeStrainAndStress(xe,ue,Ee,nue)
         
         for iNode = 1:nodeNum
             BB(1:2, 1:2, iNode) = [dNdx_q(1, iNode*2 - 1), 0.5*dNdx_q(1, iNode*2); 0.5*dNdx_q(1, iNode*2), 0.0];
-            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2-1)]; 
+            BB(1:2, 1:2, iNode + 6) =[0.0, 0.5*dNdy_q(2,iNode*2 -1); 0.5*dNdy_q(2, iNode*2-1), dNdy_q(2,iNode*2)]; 
             
         end
         
         for iDof = 1:dofNum
             DD(iDof) = sum(diag(BB(:, :, iDof)));
             SS(1:2, 1:2, iDof) = 2*mue*BB(:,:,iDof) + lambdae * DD(iDof)* eye(2);
-            Strains(:, :, iDof) = Strains(:, :, iDof) + BB(:,:,iDof)*ue(iDof);
-            Stresses(:, :, iDof) = Stresses(:, :, iDof) + SS(:, :, iDof)*ue(iDof);
+            Strains(:, :, i) = Strains(:, :, i) + BB(:,:,iDof)*ue(iDof);
+            Stresses(:, :, i) = Stresses(:, :, i) + SS(:, :, iDof)*ue(iDof);
         end
     end
 % <<-------------------------------------------------------------------->>
