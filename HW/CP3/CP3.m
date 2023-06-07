@@ -27,7 +27,7 @@ display("Elasticity problems with P2 finite elements")
 % Fe:       element load vectorcalpkg load msh
 
 %% Build a mesh
-[X, LV, BE, BN]=CP3Mesh(0.1,1.0);
+[X, LV, BE, BN]=CP3Mesh(0.2,0.0);
 fname='u4';
 nel=size(LV,2);
 npe=size(LV,1);
@@ -48,7 +48,7 @@ LG=[LV; LV+nod];
 % Complete with the value of EtaG, GG.
 
 % g2y = 0.05; % q2
-g2y = 0.0; % q3
+g2y = 1.0; % q3
 
 indices = (BN(2,:) == 2) | (BN(2,:) == 4); % Dirichlet boundary
 EtaG= BN(1, indices); % Constrained indices
@@ -63,13 +63,13 @@ GG(EtaGPos(:) == 4, 2) = 0.0;  % Value of u for each constrained index [C]
 % as there is no traction applied, "do nothing boundary is applied"
 
 % <<-------------------------------------------------------------------->>
-
 % material parameters
-EE  = 0.001* 1e6*ones(1,nel); % Young's modulus
+EE  = 1.0*1e6*ones(1,nel); % Young's modulus
 %nu = 0.0*ones(1,nel); % q2 poisson's ratio 
 nu = 0.45*ones(1,nel); % q3 poisson's ratio 
 rho = 10*ones(1,nel); % kg/m3
-grav = [0;-9.81]; % m/s^2
+%grav = [-9.81;0.0]; % m/s^2
+grav = [0.0;0.0]; % m/s^2
 bb = grav*rho;
 
 %% debugging local stiffness matrix
@@ -204,8 +204,8 @@ function [Ke,Fe]=elementKandF(xe,Ee,nue,be)
     Ke = zeros(dofNum, dofNum);
     Fe = zeros(dofNum, 1);
     
-    mue=Ee/(1+nue)/2; %
-    lambdae=mue*nue/(1-2*nue); %
+    mue=Ee/(1+nue)/2; % E/(2(1+v))
+    lambdae=2*mue*nue/(1-2*nue); % Ev /((1+v)(1-2v))
     
     dLdx=[xe(2,2)-xe(2,3),xe(2,3)-xe(2,1),xe(2,1)-xe(2,2);...
           xe(1,3)-xe(1,2),xe(1,1)-xe(1,3),xe(1,2)-xe(1,1)];
